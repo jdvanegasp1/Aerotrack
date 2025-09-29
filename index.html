@@ -1472,7 +1472,13 @@ async function pollDatabaseForUpdates() {
             postsContainer.scrollTop = postsScroll;
         }
         if (chatMessages && document.getElementById('chatArea').style.display === 'flex') {
-            chatMessages.scrollTop = chatMessages.scrollHeight; // Always scroll to bottom for new messages
+            // Only scroll to bottom if user was already at bottom (viewing latest messages)
+            const wasAtBottom = chatScroll >= chatMessages.scrollHeight - chatMessages.clientHeight - 50;
+            if (wasAtBottom) {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } else {
+                chatMessages.scrollTop = chatScroll; // Keep current position
+            }
         }
         
         console.log('✅ Database updated successfully');
@@ -1705,7 +1711,7 @@ async function loadDataFromDatabase() {
                 }))
             })).filter(c => !c.parent_comment_id);
         }
-// Load messages for current user
+// Load messages for current user - IMPROVED VERSION
         if (appData.currentUser && !appData.currentUser.isGuest) {
             const { data: sentMessages } = await supabase
                 .from('messages')
@@ -1722,23 +1728,22 @@ async function loadDataFromDatabase() {
                 appData.messages[appData.currentUser.username] = {};
             }
             
+            // Create a temporary storage for all messages with unique IDs
+            const allMessages = {};
+            
             // Process sent messages
             if (sentMessages) {
                 sentMessages.forEach(msg => {
                     const otherUser = msg.receiver.username;
-                    if (!appData.messages[appData.currentUser.username][otherUser]) {
-                        appData.messages[appData.currentUser.username][otherUser] = [];
-                    }
-                    const messageExists = appData.messages[appData.currentUser.username][otherUser].some(
-                        m => m.time === formatTimeAgo(msg.created_at) && m.content === msg.content && m.sender === appData.currentUser.username
-                    );
-                    if (!messageExists) {
-                        appData.messages[appData.currentUser.username][otherUser].push({
-                            sender: appData.currentUser.username,
-                            content: msg.content,
-                            time: formatTimeAgo(msg.created_at)
-                        });
-                    }
+                    if (!allMessages[otherUser]) allMessages[otherUser] = [];
+                    
+                    allMessages[otherUser].push({
+                        id: msg.id, // Use database ID for uniqueness
+                        sender: appData.currentUser.username,
+                        content: msg.content,
+                        time: formatTimeAgo(msg.created_at),
+                        timestamp: new Date(msg.created_at).getTime()
+                    });
                 });
             }
             
@@ -1746,28 +1751,30 @@ async function loadDataFromDatabase() {
             if (receivedMessages) {
                 receivedMessages.forEach(msg => {
                     const otherUser = msg.sender.username;
-                    if (!appData.messages[appData.currentUser.username][otherUser]) {
-                        appData.messages[appData.currentUser.username][otherUser] = [];
-                    }
-                    const messageExists = appData.messages[appData.currentUser.username][otherUser].some(
-                        m => m.time === formatTimeAgo(msg.created_at) && m.content === msg.content && m.sender === otherUser
-                    );
-                    if (!messageExists) {
-                        appData.messages[appData.currentUser.username][otherUser].push({
-                            sender: otherUser,
-                            content: msg.content,
-                            time: formatTimeAgo(msg.created_at)
-                        });
-                    }
+                    if (!allMessages[otherUser]) allMessages[otherUser] = [];
+                    
+                    allMessages[otherUser].push({
+                        id: msg.id, // Use database ID for uniqueness
+                        sender: otherUser,
+                        content: msg.content,
+                        time: formatTimeAgo(msg.created_at),
+                        timestamp: new Date(msg.created_at).getTime()
+                    });
                 });
             }
             
-            // Sort messages by timestamp (approximate based on time string)
-            Object.keys(appData.messages[appData.currentUser.username]).forEach(user => {
-                appData.messages[appData.currentUser.username][user].sort((a, b) => {
-                    // Simple sort - messages are already in order from database
-                    return 0;
-                });
+            // Sort and deduplicate messages for each conversation
+            Object.keys(allMessages).forEach(user => {
+                // Remove duplicates based on ID
+                const uniqueMessages = Array.from(
+                    new Map(allMessages[user].map(msg => [msg.id, msg])).values()
+                );
+                
+                // Sort by timestamp
+                uniqueMessages.sort((a, b) => a.timestamp - b.timestamp);
+                
+                // Update appData only if different
+                appData.messages[appData.currentUser.username][user] = uniqueMessages;
             });
         }
         renderPosts();
@@ -2814,7 +2821,7 @@ function initSampleData() {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        async function sendMessage() {
+      async function sendMessage() {
     if (!appData.currentUser || appData.currentUser.isGuest) {
         showNotification('Please create an account to send messages!');
         return;
@@ -2828,17 +2835,23 @@ function initSampleData() {
     const receiver = appData.users.find(u => u.username === appData.currentChat);
     if (!receiver) return;
 
+    // Disable input to prevent double-sending
+    input.disabled = true;
+
     try {
-        await db.sendMessage({
+        const newMessage = await db.sendMessage({
             senderId: appData.currentUser.id,
             receiverId: receiver.id,
             content: content
         });
 
+        // Add message locally with database ID
         const message = {
+            id: newMessage.id,
             sender: appData.currentUser.username,
             content: content,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            time: formatTimeAgo(newMessage.created_at),
+            timestamp: new Date(newMessage.created_at).getTime()
         };
 
         if (!appData.messages[appData.currentUser.username]) {
@@ -2847,7 +2860,14 @@ function initSampleData() {
         if (!appData.messages[appData.currentUser.username][appData.currentChat]) {
             appData.messages[appData.currentUser.username][appData.currentChat] = [];
         }
-        appData.messages[appData.currentUser.username][appData.currentChat].push(message);
+        
+        // Check if message already exists (prevent duplicates)
+        const exists = appData.messages[appData.currentUser.username][appData.currentChat]
+            .some(m => m.id === newMessage.id);
+        
+        if (!exists) {
+            appData.messages[appData.currentUser.username][appData.currentChat].push(message);
+        }
 
         input.value = '';
         renderChatMessages();
@@ -2855,6 +2875,9 @@ function initSampleData() {
     } catch (error) {
         console.error('Error sending message:', error);
         showNotification('Error sending message');
+    } finally {
+        input.disabled = false;
+        input.focus();
     }
 }
         function closeModal(modalId) {
