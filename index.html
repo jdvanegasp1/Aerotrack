@@ -873,17 +873,32 @@
         }
 
         .auth-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 3000;
-        }
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: background-image 1s ease-in-out;
+}
+
+.auth-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: -1;
+}
 
         .auth-box {
             background: white;
@@ -3553,6 +3568,30 @@ async function deletePost(postId) {
 
         initSampleData();
         loadDataFromDatabase();
+        // Background rotation for auth screen
+const authBackgrounds = [
+    'https://quickimagetools.com/uploads/image_68dafa76baa024.26213809.avif',
+    'https://quickimagetools.com/uploads/image_68dafaf00eeec0.20802679.png',
+    'https://quickimagetools.com/uploads/Motorsport-2.jpg',
+    'https://quickimagetools.com/uploads/1-2-800x800.jpg',
+    'https://quickimagetools.com/uploads/gp-de-me-xico-f1-010-clasificacio-n-1572266107.jpg'
+];
+
+let currentBgIndex = 0;
+
+function rotateAuthBackground() {
+    const authContainer = document.getElementById('authContainer');
+    if (authContainer && !authContainer.classList.contains('hidden')) {
+        currentBgIndex = (currentBgIndex + 1) % authBackgrounds.length;
+        authContainer.style.backgroundImage = `url('${authBackgrounds[currentBgIndex]}')`;
+    }
+}
+
+// Set initial background
+document.getElementById('authContainer').style.backgroundImage = `url('${authBackgrounds[0]}')`;
+
+// Rotate every 10 seconds
+setInterval(rotateAuthBackground, 10000);
     </script>
         
 </body>
