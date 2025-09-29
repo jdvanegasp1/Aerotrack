@@ -2718,86 +2718,115 @@ function initSampleData() {
         }
 
         function uploadProfilePic(input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    appData.currentUser.profilePic = e.target.result;
-                    document.getElementById('settingsProfilePic').style.backgroundImage = `url('${e.target.result}')`;
-                    document.getElementById('settingsProfilePic').textContent = '';
-                    showNotification('Profile picture updated! Click Save Changes to confirm.');
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            appData.currentUser.profilePic = e.target.result;
+            document.getElementById('settingsProfilePic').style.backgroundImage = `url('${e.target.result}')`;
+            document.getElementById('settingsProfilePic').textContent = '';
+            showNotification('Profile picture updated! Click Save Changes to confirm.');
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+
+}
 
         function removeProfilePic() {
-            appData.currentUser.profilePic = null;
-            const picEl = document.getElementById('settingsProfilePic');
-            picEl.style.backgroundImage = '';
-            picEl.textContent = appData.currentUser.username.substring(0, 2).toUpperCase();
-            openSettings();
-            showNotification('Profile picture removed! Click Save Changes to confirm.');
+    appData.currentUser.profilePic = null;
+    const picEl = document.getElementById('settingsProfilePic');
+    picEl.style.backgroundImage = '';
+    picEl.textContent = appData.currentUser.username.substring(0, 2).toUpperCase();
+    openSettings();
+    showNotification('Profile picture removed! Click Save Changes to confirm.');
+}
+        async function saveSettings() {
+    const newUsername = document.getElementById('settingsUsername').value.trim();
+    const newEmail = document.getElementById('settingsEmail').value.trim();
+    const newBio = document.getElementById('settingsBio').value.trim();
+    const newPassword = document.getElementById('settingsNewPassword').value;
+    const confirmPassword = document.getElementById('settingsConfirmPassword').value;
+
+    if (!newUsername || !newEmail) {
+        showNotification('Username and email are required!');
+        return;
+    }
+
+    if (newPassword && newPassword !== confirmPassword) {
+        showNotification('Passwords do not match!');
+        return;
+    }
+
+    try {
+        const existingUser = await db.getUserByUsername(newUsername);
+        if (existingUser && existingUser.id !== appData.currentUser.id) {
+            showNotification('Username already taken!');
+            return;
         }
 
-        function saveSettings() {
-            const newUsername = document.getElementById('settingsUsername').value.trim();
-            const newEmail = document.getElementById('settingsEmail').value.trim();
-            const newBio = document.getElementById('settingsBio').value.trim();
-            const newPassword = document.getElementById('settingsNewPassword').value;
-            const confirmPassword = document.getElementById('settingsConfirmPassword').value;
+        const oldUsername = appData.currentUser.username;
+        
+        // Prepare update object
+        const updates = {
+            username: newUsername,
+            email: newEmail,
+            bio: newBio,
+            profile_pic: appData.currentUser.profilePic
+        };
+        
+        if (newPassword) {
+            updates.password = newPassword;
+        }
 
-            if (!newUsername || !newEmail) {
-                showNotification('Username and email are required!');
-                return;
+        // Update in database
+        await db.updateUser(appData.currentUser.id, updates);
+
+        // Update local data
+        appData.currentUser.username = newUsername;
+        appData.currentUser.email = newEmail;
+        appData.currentUser.bio = newBio;
+        
+        if (newPassword) {
+            appData.currentUser.password = newPassword;
+        }
+
+        // Update username in posts
+        appData.posts.forEach(post => {
+            if (post.author === oldUsername) {
+                post.author = newUsername;
             }
-
-            if (newPassword && newPassword !== confirmPassword) {
-                showNotification('Passwords do not match!');
-                return;
+            if (post.originalAuthor === oldUsername) {
+                post.originalAuthor = newUsername;
             }
+        });
 
-            const existingUser = appData.users.find(u => u.username === newUsername && u.id !== appData.currentUser.id);
-            if (existingUser) {
-                showNotification('Username already taken!');
-                return;
-            }
-
-            const oldUsername = appData.currentUser.username;
-            appData.currentUser.username = newUsername;
-            appData.currentUser.email = newEmail;
-            appData.currentUser.bio = newBio;
-            
-            if (newPassword) {
-                appData.currentUser.password = newPassword;
-            }
-
-            appData.posts.forEach(post => {
-                if (post.author === oldUsername) {
-                    post.author = newUsername;
+        // Update username in comments
+        Object.keys(appData.comments).forEach(postId => {
+            appData.comments[postId].forEach(comment => {
+                if (comment.author === oldUsername) {
+                    comment.author = newUsername;
                 }
-                if (post.originalAuthor === oldUsername) {
-                    post.originalAuthor = newUsername;
-                }
-            });
-
-            Object.keys(appData.comments).forEach(postId => {
-                appData.comments[postId].forEach(comment => {
-                    if (comment.author === oldUsername) {
-                        comment.author = newUsername;
+                comment.replies.forEach(reply => {
+                    if (reply.author === oldUsername) {
+                        reply.author = newUsername;
                     }
-                    comment.replies.forEach(reply => {
-                        if (reply.author === oldUsername) {
-                            reply.author = newUsername;
-                        }
-                    });
                 });
             });
+        });
 
-            closeModal('settingsModal');
-            showNotification('Settings saved successfully!');
-            renderPosts();
+        // Update in users array
+        const userIndex = appData.users.findIndex(u => u.id === appData.currentUser.id);
+        if (userIndex !== -1) {
+            appData.users[userIndex] = {...appData.currentUser};
         }
 
+        closeModal('settingsModal');
+        showNotification('Settings saved successfully!');
+        renderPosts();
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        showNotification('Error saving settings. Please try again.');
+    }
+}
         function openMessages() {
             const modal = document.getElementById('messagesModal');
             const contactsList = document.getElementById('contactsList');
