@@ -29,31 +29,36 @@
             z-index: 100;
         }
         .message-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: linear-gradient(45deg, #e53935, #c62828);
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            font-weight: bold;
-            animation: pulse 2s infinite;
-        }
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: linear-gradient(45deg, #e53935, #c62828);
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    animation: pulse 2s infinite;
+}
         
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.1); }
         }
         
-        .nav-btn-wrapper {
-            position: relative;
-            display: inline-block;
-        }
+     
+
+
+.nav-buttons {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap; /* Add this line */
+}
         
         .header-content {
             display: flex;
@@ -1085,13 +1090,10 @@
                     <div class="search-results" id="searchResults"></div>
                 </div>
                 <div class="nav-buttons">
-                    <div class="nav-btn-wrapper">
-                        <button class="nav-btn" onclick="openMessages()">Messages</button>
-                        <span class="message-badge hidden" id="messageBadge">0</span>
-                    </div>
-                    <button class="nav-btn" onclick="openProfile()">Profile</button>
-                    <button class="nav-btn" onclick="openSettings()">Settings</button>
-                    <button class="nav-btn" onclick="logout()" style="background: #e53935;" id="logoutBtn">Logout</button>
+<button class="nav-btn" onclick="openMessages()" style="position: relative;">
+    Messages
+    <span class="message-badge hidden" id="messageBadge">0</span>
+</button>
                 </div>
             </div>
         </header>
