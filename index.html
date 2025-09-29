@@ -28,6 +28,32 @@
             top: 0;
             z-index: 100;
         }
+        .message-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: linear-gradient(45deg, #e53935, #c62828);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .nav-btn-wrapper {
+            position: relative;
+            display: inline-block;
+        }
         
         .header-content {
             display: flex;
@@ -1058,12 +1084,10 @@
                     <span class="search-icon">🔍</span>
                     <div class="search-results" id="searchResults"></div>
                 </div>
-                <div class="nav-buttons">
-                    <button class="nav-btn" onclick="openMessages()">Messages</button>
-                    <button class="nav-btn" onclick="openProfile()">Profile</button>
-                    <button class="nav-btn" onclick="openSettings()">Settings</button>
-                    <button class="nav-btn" onclick="logout()" style="background: #e53935;" id="logoutBtn">Logout</button>
-                </div>
+                <div class="nav-btn-wrapper">
+                        <button class="nav-btn" onclick="openMessages()">Messages</button>
+                        <span class="message-badge hidden" id="messageBadge">0</span>
+                    </div>
             </div>
         </header>
 
@@ -1399,14 +1423,47 @@ async function pollDatabaseForUpdates() {
         
         // Save current scroll position
         const postsContainer = document.getElementById('postsContainer');
-        const scrollPosition = postsContainer ? postsContainer.scrollTop : 0;
+        const chatMessages = document.getElementById('chatMessages');
+        const postsScroll = postsContainer ? postsContainer.scrollTop : 0;
+        const chatScroll = chatMessages ? chatMessages.scrollTop : 0;
+        
+        // Get current message count for notification check
+        const oldMessageCount = appData.currentChat && appData.messages[appData.currentUser.username]?.[appData.currentChat] 
+            ? appData.messages[appData.currentUser.username][appData.currentChat].length 
+            : 0;
         
         // Load new data
         await loadDataFromDatabase();
         
-        // Restore scroll position
+        // Check for new messages and show notifications
+        if (appData.currentChat && appData.messages[appData.currentUser.username]?.[appData.currentChat]) {
+            const newMessageCount = appData.messages[appData.currentUser.username][appData.currentChat].length;
+            if (newMessageCount > oldMessageCount) {
+                const newMessages = appData.messages[appData.currentUser.username][appData.currentChat].slice(oldMessageCount);
+                newMessages.forEach(msg => {
+                    if (msg.sender !== appData.currentUser.username) {
+                        showNotification(`💬 New message from ${msg.sender}`, 4000);
+                    }
+                });
+                
+                // Update chat if open
+                if (document.getElementById('chatArea').style.display === 'flex') {
+                    renderChatMessages();
+                }
+            }
+        }
+        
+        // Check for messages from other users
+        if (!appData.currentUser.isGuest) {
+            await checkForNewMessages();
+        }
+        
+        // Restore scroll positions
         if (postsContainer) {
-            postsContainer.scrollTop = scrollPosition;
+            postsContainer.scrollTop = postsScroll;
+        }
+        if (chatMessages && document.getElementById('chatArea').style.display === 'flex') {
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Always scroll to bottom for new messages
         }
         
         console.log('✅ Database updated successfully');
@@ -1414,6 +1471,75 @@ async function pollDatabaseForUpdates() {
         console.error('❌ Error polling database:', error);
     }
 }
+async function checkForNewMessages() {
+    if (!appData.currentUser || appData.currentUser.isGuest) return;
+    
+    try {
+        // Get all messages where current user is receiver
+        const { data: newMessages, error } = await supabase
+            .from('messages')
+            .select('*, sender:users!messages_sender_id_fkey(username)')
+            .eq('receiver_id', appData.currentUser.id)
+            .order('created_at', { ascending: false })
+            .limit(10);
+        
+        if (error) throw error;
+        
+        if (newMessages && newMessages.length > 0) {
+            // Check for unread messages from each sender
+            newMessages.forEach(msg => {
+                const senderUsername = msg.sender.username;
+                
+                // Initialize message storage if needed
+                if (!appData.messages[appData.currentUser.username]) {
+                    appData.messages[appData.currentUser.username] = {};
+                }
+                if (!appData.messages[appData.currentUser.username][senderUsername]) {
+                    appData.messages[appData.currentUser.username][senderUsername] = [];
+                }
+                
+                // Check if this message is already in our local storage
+                const messageExists = appData.messages[appData.currentUser.username][senderUsername].some(
+                    m => m.time === formatTimeAgo(msg.created_at) && m.content === msg.content
+                );
+                
+                // If it's a new message and not from current open chat, show notification
+                if (!messageExists && appData.currentChat !== senderUsername) {
+                    showNotification(`💬 New message from ${senderUsername}: ${msg.content.substring(0, 30)}${msg.content.length > 30 ? '...' : ''}`, 5000);
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error checking for new messages:', error);
+    }
+}
+
+function updateMessageBadge() {
+    if (!appData.currentUser || appData.currentUser.isGuest) return;
+    
+    const badge = document.getElementById('messageBadge');
+    if (!badge) return;
+    
+    let unreadCount = 0;
+    
+    // Count messages from users other than current chat
+    Object.keys(appData.messages[appData.currentUser.username] || {}).forEach(username => {
+        if (username !== appData.currentChat) {
+            const messages = appData.messages[appData.currentUser.username][username];
+            // Count messages from others (simple approach - shows all messages from non-active chats)
+            const fromOthers = messages.filter(m => m.sender !== appData.currentUser.username);
+            unreadCount += fromOthers.length;
+        }
+    });
+    
+    if (unreadCount > 0) {
+        badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
 
 function startDatabasePolling() {
     // Stop any existing polling
@@ -1570,7 +1696,71 @@ async function loadDataFromDatabase() {
                 }))
             })).filter(c => !c.parent_comment_id);
         }
-
+// Load messages for current user
+        if (appData.currentUser && !appData.currentUser.isGuest) {
+            const { data: sentMessages } = await supabase
+                .from('messages')
+                .select('*, receiver:users!messages_receiver_id_fkey(username)')
+                .eq('sender_id', appData.currentUser.id);
+            
+            const { data: receivedMessages } = await supabase
+                .from('messages')
+                .select('*, sender:users!messages_sender_id_fkey(username)')
+                .eq('receiver_id', appData.currentUser.id);
+            
+            // Initialize messages structure
+            if (!appData.messages[appData.currentUser.username]) {
+                appData.messages[appData.currentUser.username] = {};
+            }
+            
+            // Process sent messages
+            if (sentMessages) {
+                sentMessages.forEach(msg => {
+                    const otherUser = msg.receiver.username;
+                    if (!appData.messages[appData.currentUser.username][otherUser]) {
+                        appData.messages[appData.currentUser.username][otherUser] = [];
+                    }
+                    const messageExists = appData.messages[appData.currentUser.username][otherUser].some(
+                        m => m.time === formatTimeAgo(msg.created_at) && m.content === msg.content && m.sender === appData.currentUser.username
+                    );
+                    if (!messageExists) {
+                        appData.messages[appData.currentUser.username][otherUser].push({
+                            sender: appData.currentUser.username,
+                            content: msg.content,
+                            time: formatTimeAgo(msg.created_at)
+                        });
+                    }
+                });
+            }
+            
+            // Process received messages
+            if (receivedMessages) {
+                receivedMessages.forEach(msg => {
+                    const otherUser = msg.sender.username;
+                    if (!appData.messages[appData.currentUser.username][otherUser]) {
+                        appData.messages[appData.currentUser.username][otherUser] = [];
+                    }
+                    const messageExists = appData.messages[appData.currentUser.username][otherUser].some(
+                        m => m.time === formatTimeAgo(msg.created_at) && m.content === msg.content && m.sender === otherUser
+                    );
+                    if (!messageExists) {
+                        appData.messages[appData.currentUser.username][otherUser].push({
+                            sender: otherUser,
+                            content: msg.content,
+                            time: formatTimeAgo(msg.created_at)
+                        });
+                    }
+                });
+            }
+            
+            // Sort messages by timestamp (approximate based on time string)
+            Object.keys(appData.messages[appData.currentUser.username]).forEach(user => {
+                appData.messages[appData.currentUser.username][user].sort((a, b) => {
+                    // Simple sort - messages are already in order from database
+                    return 0;
+                });
+            });
+        }
         renderPosts();
     } catch (error) {
         console.error('Error loading data:', error);
@@ -2594,6 +2784,7 @@ function initSampleData() {
             document.getElementById('messagesModal').classList.add('show');
             
             closeModal('profileModal');
+            updateMessageBadge(); // Clear badge for this chat
         }
 
         function renderChatMessages() {
@@ -2651,6 +2842,7 @@ function initSampleData() {
 
         input.value = '';
         renderChatMessages();
+        updateMessageBadge();
     } catch (error) {
         console.error('Error sending message:', error);
         showNotification('Error sending message');
