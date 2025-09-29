@@ -1039,13 +1039,11 @@
             }
 
             .nav-buttons {
-                flex-wrap: wrap;
-            }
-
-            .nav-btn {
-                padding: 6px 12px;
-                font-size: 12px;
-            }
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
         }
     </style>
 </head>
@@ -1091,6 +1089,9 @@
                     <div class="search-results" id="searchResults"></div>
                 </div>
                 <div class="nav-buttons">
+                    <button class="nav-btn" onclick="openProfile()">Profile</button>
+<button class="nav-btn" onclick="openSettings()">Settings</button>
+<button class="nav-btn" onclick="logout()" style="background: #e53935;" id="logoutBtn">Logout</button>
 <button class="nav-btn" onclick="openMessages()" style="position: relative;">
     Messages
     <span class="message-badge hidden" id="messageBadge">0</span>
