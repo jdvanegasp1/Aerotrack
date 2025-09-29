@@ -1387,6 +1387,41 @@ const db = {
         return data || [];
     }
 };
+// Polling interval for database updates
+let pollingInterval = null;
+
+async function pollDatabaseForUpdates() {
+    if (!appData.currentUser) return;
+    
+    try {
+        console.log('Polling database for updates...');
+        await loadDataFromDatabase();
+    } catch (error) {
+        console.error('Error polling database:', error);
+    }
+}
+
+function setupRealtimeSubscriptions() {
+    // Clear any existing interval
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+    }
+    
+    // Poll every 3 seconds for updates
+    pollingInterval = setInterval(pollDatabaseForUpdates, 3000);
+    console.log('Database polling started - checking every 3 seconds');
+    
+    // Do an immediate check
+    pollDatabaseForUpdates();
+}
+
+function cleanupRealtimeSubscriptions() {
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+        console.log('Database polling stopped');
+    }
+}
 // Real-time subscriptions
 let postsSubscription = null;
 let commentsSubscription = null;
