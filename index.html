@@ -1388,44 +1388,58 @@ const db = {
     }
 };
 // Polling interval for database updates
+// Polling system for automatic updates
 let pollingInterval = null;
 
 async function pollDatabaseForUpdates() {
     if (!appData.currentUser) return;
     
     try {
-        console.log('Polling database for updates...');
+        console.log('🔄 Checking database for updates...');
+        
+        // Save current scroll position
+        const postsContainer = document.getElementById('postsContainer');
+        const scrollPosition = postsContainer ? postsContainer.scrollTop : 0;
+        
+        // Load new data
         await loadDataFromDatabase();
+        
+        // Restore scroll position
+        if (postsContainer) {
+            postsContainer.scrollTop = scrollPosition;
+        }
+        
+        console.log('✅ Database updated successfully');
     } catch (error) {
-        console.error('Error polling database:', error);
+        console.error('❌ Error polling database:', error);
     }
 }
 
-function setupRealtimeSubscriptions() {
-    // Clear any existing interval
+function startDatabasePolling() {
+    // Stop any existing polling
     if (pollingInterval) {
         clearInterval(pollingInterval);
     }
     
-    // Poll every 3 seconds for updates
-    pollingInterval = setInterval(pollDatabaseForUpdates, 3000);
-    console.log('Database polling started - checking every 3 seconds');
+    // Start polling every 5 seconds
+    pollingInterval = setInterval(pollDatabaseForUpdates, 5000);
+    console.log('✅ Automatic refresh started - checking every 5 seconds');
     
-    // Do an immediate check
+    // Do immediate check
     pollDatabaseForUpdates();
 }
 
-function cleanupRealtimeSubscriptions() {
+function stopDatabasePolling() {
     if (pollingInterval) {
         clearInterval(pollingInterval);
         pollingInterval = null;
-        console.log('Database polling stopped');
+        console.log('⏹️ Automatic refresh stopped');
     }
 }
+
+
 // Real-time subscriptions
-let postsSubscription = null;
-let commentsSubscription = null;
-let likesSubscription = null;
+
 
 function setupRealtimeSubscriptions() {
     // Unsubscribe from existing subscriptions
@@ -1612,28 +1626,27 @@ function initSampleData() {
 
     appData.nextPostId = 4;
 }
-        function continueAsGuest() {
-            const guestUser = {
-                id: 999,
-                username: 'Guest',
-                email: 'guest@aerotrack.com',
-                password: '',
-                bio: 'Browsing as Guest',
-                followers: 0,
-                profilePic: null,
-                isGuest: true
-            };
+       function continueAsGuest() {
+    const guestUser = {
+        id: 999,
+        username: 'Guest',
+        email: 'guest@aerotrack.com',
+        password: '',
+        bio: 'Browsing as Guest',
+        followers: 0,
+        profilePic: null,
+        isGuest: true
+    };
 
-            appData.currentUser = guestUser;
-            
-            document.getElementById('authContainer').classList.add('hidden');
-            document.getElementById('mainApp').classList.remove('hidden');
-            document.getElementById('logoutBtn').textContent = 'Exit Guest Mode';
-            showNotification('Welcome, Guest!', 2000);
-            renderPosts();
-            setupRealtimeSubscriptions();
-            
-        }
+    appData.currentUser = guestUser;
+    
+    document.getElementById('authContainer').classList.add('hidden');
+    document.getElementById('mainApp').classList.remove('hidden');
+    document.getElementById('logoutBtn').textContent = 'Exit Guest Mode';
+    showNotification('Welcome, Guest!', 2000);
+    renderPosts();
+    startDatabasePolling(); // CAMBIA setupRealtimeSubscriptions() por esto
+}
 
         function showSignup() {
             document.getElementById('loginForm').classList.add('hidden');
@@ -1677,7 +1690,7 @@ function initSampleData() {
             showNotification('Welcome back, ' + user.username + '!');
             
             await loadDataFromDatabase();
-             setupRealtimeSubscriptions();
+             startDatabasePolling()
         } else {
             errorEl.textContent = 'Invalid username or password';
             errorEl.style.display = 'block';
@@ -1741,7 +1754,7 @@ function initSampleData() {
         showNotification('Welcome to Aerotrack, ' + username + '!');
         
         await loadDataFromDatabase();
-        setupRealtimeSubscriptions();
+        startDatabasePolling()
         
     } catch (error) {
         console.error('Signup error:', error);
@@ -1751,16 +1764,14 @@ function initSampleData() {
 }
 
         function logout() {
-            
-             cleanupRealtimeSubscriptions();
-            
-            appData.currentUser = null;
-            document.getElementById('mainApp').classList.add('hidden');
-            document.getElementById('authContainer').classList.remove('hidden');
-            document.getElementById('loginUsername').value = '';
-            document.getElementById('loginPassword').value = '';
-            showNotification('Logged out successfully');
-        }
+    stopDatabasePolling(); // CAMBIA cleanupRealtimeSubscriptions() por esto
+    appData.currentUser = null;
+    document.getElementById('mainApp').classList.add('hidden');
+    document.getElementById('authContainer').classList.remove('hidden');
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+    showNotification('Logged out successfully');
+}
 
        async function toggleFollow(username) {
     if (!appData.currentUser || appData.currentUser.isGuest) {
