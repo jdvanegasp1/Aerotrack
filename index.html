@@ -1738,6 +1738,23 @@ async function loadDataFromDatabase() {
                 return user ? user.username : null;
             }).filter(Boolean);
         }
+        // Load repost tracking
+if (appData.currentUser && !appData.currentUser.isGuest) {
+    appData.reposts[appData.currentUser.username] = [];
+    posts.forEach(post => {
+        if (post.is_repost && post.author === appData.currentUser.username && post.original_author) {
+            // Find original post ID (this is approximate tracking)
+            const originalPost = posts.find(p => 
+                p.author === post.original_author && 
+                p.content === post.content && 
+                !p.is_repost
+            );
+            if (originalPost) {
+                appData.reposts[appData.currentUser.username].push(originalPost.id);
+            }
+        }
+    });
+}
 
         for (const post of appData.posts) {
             const comments = await db.getCommentsByPostId(post.id);
@@ -2186,39 +2203,65 @@ function initSampleData() {
     }
 }
 
-        function repostPost(postId) {
-            const originalPost = appData.posts.find(p => p.id === postId);
-            if (!originalPost) return;
+        async function repostPost(postId) {
+    if (!appData.currentUser || appData.currentUser.isGuest) {
+        showNotification('Please create an account to repost!');
+        return;
+    }
 
-            const userReposts = appData.reposts[appData.currentUser.username] || [];
-            const hasReposted = userReposts.includes(postId);
+    const originalPost = appData.posts.find(p => p.id === postId);
+    if (!originalPost) return;
 
-            if (hasReposted) {
-                showNotification('You have already reposted this!');
-                return;
-            }
+    if (originalPost.author === appData.currentUser.username) {
+        showNotification('You cannot repost your own post!');
+        return;
+    }
 
-            const repost = {
-                id: appData.nextPostId++,
-                author: appData.currentUser.username,
-                content: originalPost.content,
-                category: originalPost.category,
-                likes: 0,
-                time: 'Just now',
-                image: originalPost.image,
-                isRepost: true,
-                originalAuthor: originalPost.author
-            };
+    const userReposts = appData.reposts[appData.currentUser.username] || [];
+    const hasReposted = userReposts.includes(postId);
 
-            if (!appData.reposts[appData.currentUser.username]) {
-                appData.reposts[appData.currentUser.username] = [];
-            }
-            appData.reposts[appData.currentUser.username].push(postId);
+    if (hasReposted) {
+        showNotification('You have already reposted this!');
+        return;
+    }
 
-            appData.posts.unshift(repost);
-            renderPosts();
-            showNotification('Post reposted!');
+    try {
+        // Save repost to database
+        const newRepost = await db.createPost({
+            author: appData.currentUser.username,
+            content: originalPost.content,
+            category: originalPost.category,
+            image: originalPost.image,
+            isRepost: true,
+            originalAuthor: originalPost.isRepost ? originalPost.originalAuthor : originalPost.author
+        });
+
+        // Add to local data
+        const repost = {
+            id: newRepost.id,
+            author: appData.currentUser.username,
+            content: newRepost.content,
+            category: newRepost.category,
+            likes: 0,
+            time: 'Just now',
+            image: newRepost.image,
+            isRepost: true,
+            originalAuthor: newRepost.original_author
+        };
+
+        if (!appData.reposts[appData.currentUser.username]) {
+            appData.reposts[appData.currentUser.username] = [];
         }
+        appData.reposts[appData.currentUser.username].push(postId);
+
+        appData.posts.unshift(repost);
+        renderPosts();
+        showNotification('Post reposted successfully!');
+    } catch (error) {
+        console.error('Error reposting:', error);
+        showNotification('Error reposting. Please try again.');
+    }
+}
 
         function toggleComments(postId) {
             const commentsSection = document.getElementById('comments-' + postId);
