@@ -1084,10 +1084,15 @@
                     <span class="search-icon">🔍</span>
                     <div class="search-results" id="searchResults"></div>
                 </div>
-                <div class="nav-btn-wrapper">
+                <div class="nav-buttons">
+                    <div class="nav-btn-wrapper">
                         <button class="nav-btn" onclick="openMessages()">Messages</button>
                         <span class="message-badge hidden" id="messageBadge">0</span>
                     </div>
+                    <button class="nav-btn" onclick="openProfile()">Profile</button>
+                    <button class="nav-btn" onclick="openSettings()">Settings</button>
+                    <button class="nav-btn" onclick="logout()" style="background: #e53935;" id="logoutBtn">Logout</button>
+                </div>
             </div>
         </header>
 
