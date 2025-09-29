@@ -872,7 +872,7 @@
             background: #f0f0f0;
         }
 
-        .auth-container {
+       .auth-container {
     position: fixed;
     top: 0;
     left: 0;
@@ -886,7 +886,24 @@
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    transition: background-image 1s ease-in-out;
+    transition: opacity 0.5s ease-in-out, background-image 0.5s ease-in-out;
+    opacity: 1;
+}
+
+.auth-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1;
+}
+
+.auth-box {
+    position: relative;
+    z-index: 2;
 }
 
 .auth-container::before {
@@ -901,13 +918,15 @@
 }
 
         .auth-box {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            width: 400px;
-            max-width: 90%;
-            box-shadow: 0 10px 50px rgba(0,0,0,0.3);
-        }
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    width: 400px;
+    max-width: 90%;
+    box-shadow: 0 10px 50px rgba(0,0,0,0.3);
+    position: relative;
+    z-index: 2;
+}
 
         .auth-logo {
     text-align: center;
@@ -3568,27 +3587,49 @@ async function deletePost(postId) {
 
         initSampleData();
         loadDataFromDatabase();
-        // Background rotation for auth screen
+        // Background rotation for auth screen - IMPROVED VERSION
 const authBackgrounds = [
     'https://quickimagetools.com/uploads/image_68dafa76baa024.26213809.avif',
     'https://quickimagetools.com/uploads/image_68dafaf00eeec0.20802679.png',
-    'https://quickimagetools.com/uploads/Motorsport-2.jpg',
-    'https://quickimagetools.com/uploads/1-2-800x800.jpg',
-    'https://quickimagetools.com/uploads/gp-de-me-xico-f1-010-clasificacio-n-1572266107.jpg'
+    'https://quickimagetools.com/uploads/image_68dafd39c99e44.71454727.avif',
+    'https://quickimagetools.com/uploads/image_68dafd66577f51.07545601.jpg',
+    'https://quickimagetools.com/uploads/image_68dafda23f0499.83843870.jpg'
 ];
 
 let currentBgIndex = 0;
+let preloadedImages = [];
+
+// Preload all images to prevent loading errors
+function preloadBackgrounds() {
+    authBackgrounds.forEach((url, index) => {
+        const img = new Image();
+        img.src = url;
+        preloadedImages[index] = img;
+    });
+}
 
 function rotateAuthBackground() {
     const authContainer = document.getElementById('authContainer');
     if (authContainer && !authContainer.classList.contains('hidden')) {
-        currentBgIndex = (currentBgIndex + 1) % authBackgrounds.length;
-        authContainer.style.backgroundImage = `url('${authBackgrounds[currentBgIndex]}')`;
+        // Add fade out
+        authContainer.style.opacity = '0.7';
+        
+        setTimeout(() => {
+            currentBgIndex = (currentBgIndex + 1) % authBackgrounds.length;
+            authContainer.style.backgroundImage = `url('${authBackgrounds[currentBgIndex]}')`;
+            // Fade back in
+            authContainer.style.opacity = '1';
+        }, 500);
     }
 }
 
-// Set initial background
-document.getElementById('authContainer').style.backgroundImage = `url('${authBackgrounds[0]}')`;
+// Initialize backgrounds
+preloadBackgrounds();
+const authContainer = document.getElementById('authContainer');
+if (authContainer) {
+    authContainer.style.backgroundImage = `url('${authBackgrounds[0]}')`;
+    authContainer.style.opacity = '1';
+}
 
 // Rotate every 10 seconds
 setInterval(rotateAuthBackground, 10000);
