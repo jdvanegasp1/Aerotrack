@@ -696,7 +696,33 @@
         .comment-action.liked {
             color: #e74c3c;
         }
+.delete-btn {
+    background: none;
+    border: none;
+    color: #e53935;
+    cursor: pointer;
+    font-size: 12px;
+    transition: color 0.2s;
+    margin-left: auto;
+}
 
+.delete-btn:hover {
+    color: #c62828;
+}
+
+.post-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    position: relative;
+}
+
+.post-header .delete-btn {
+    position: absolute;
+    right: 0;
+    font-size: 14px;
+}
         .reply-form {
             margin-top: 10px;
             display: none;
@@ -1096,6 +1122,7 @@
     <img src="https://i.postimg.cc/MZQg8dYX/Logo-Aerotrack.jpg" alt="Aerotrack Logo">
     <span class="logo-text">Aerotrack</span>
 </div>
+
                 <div class="search-container">
                     <input type="text" class="search-input" id="searchInput" placeholder="Search users, posts..." oninput="performSearch(this.value)">
                     <span class="search-icon">🔍</span>
@@ -2333,12 +2360,16 @@ function initSampleData() {
                             🔄 ${post.author} reposted
                         </div>
                     ` : ''}
-                    <div class="post-header">
-                        <div class="avatar" onclick="openUserProfile('${displayAuthor}')" style="${avatarStyle}">${!user || !user.profilePic ? displayInitials : ''}</div>
-                        <div class="post-info">
-                            <h4 onclick="openUserProfile('${displayAuthor}')">${displayAuthor}</h4>
-                            <div class="post-time">${post.time}</div>
-                        </div>
+                    <div class="post-header" style="position: relative;">
+    <div class="avatar" onclick="openUserProfile('${displayAuthor}')" style="${avatarStyle}">${!user || !user.profilePic ? displayInitials : ''}</div>
+    <div class="post-info">
+        <h4 onclick="openUserProfile('${displayAuthor}')">${displayAuthor}</h4>
+        <div class="post-time">${post.time}</div>
+    </div>
+    ${appData.currentUser && post.author === appData.currentUser.username ? `
+        <button class="delete-btn" onclick="deletePost(${post.id})" title="Delete post">🗑️</button>
+    ` : ''}
+</div>
                     </div>
                     <div class="post-content">${post.content}</div>
                     ${post.image ? `<img src="${post.image}" class="post-image" alt="Post image">` : ''}
@@ -2368,9 +2399,12 @@ function initSampleData() {
                                     </div>
                                     <div class="comment-content">${comment.content}</div>
                                     <div class="comment-actions">
-                                        <button class="comment-action ${hasLikedComment ? 'liked' : ''}" onclick="likeComment(${comment.id}, ${post.id})">❤️ ${comment.likes}</button>
-                                        <button class="comment-action" onclick="toggleReplyForm(${comment.id})">💬 Reply</button>
-                                    </div>
+    <button class="comment-action ${hasLikedComment ? 'liked' : ''}" onclick="likeComment(${comment.id}, ${post.id})">❤️ ${comment.likes}</button>
+    <button class="comment-action" onclick="toggleReplyForm(${comment.id})">💬 Reply</button>
+    ${appData.currentUser && comment.author === appData.currentUser.username ? `
+        <button class="comment-action delete-btn" onclick="deleteComment(${comment.id}, ${post.id})">🗑️ Delete</button>
+    ` : ''}
+</div>
                                     <div class="reply-form ${appData.openReplyForms.has(comment.id) ? 'show' : ''}" id="reply-form-${comment.id}">
                                         <input type="text" id="reply-input-${comment.id}" placeholder="Write a reply..." onkeypress="if(event.key==='Enter') addReply(${comment.id}, ${post.id})">
                                         <button onclick="addReply(${comment.id}, ${post.id})">Reply</button>
@@ -3256,9 +3290,80 @@ function initSampleData() {
             postInput.setSelectionRange(postInput.value.length, postInput.value.length);
             showNotification(`Ready to post about ${hashtag}!`);
         }
+async function deletePost(postId) {
+            if (!appData.currentUser || appData.currentUser.isGuest) {
+                showNotification('Please create an account to delete posts!');
+                return;
+            }
+
+            const post = appData.posts.find(p => p.id === postId);
+            if (!post) return;
+
+            if (post.author !== appData.currentUser.username) {
+                showNotification('You can only delete your own posts!');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to delete this post?')) {
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('posts')
+                    .delete()
+                    .eq('id', postId);
+
+                if (error) throw error;
+
+                appData.posts = appData.posts.filter(p => p.id !== postId);
+                delete appData.comments[postId];
+                renderPosts();
+                showNotification('Post deleted successfully!');
+            } catch (error) {
+                console.error('Error deleting post:', error);
+                showNotification('Error deleting post');
+            }
+        }
+
+        async function deleteComment(commentId, postId) {
+            if (!appData.currentUser || appData.currentUser.isGuest) {
+                showNotification('Please create an account to delete comments!');
+                return;
+            }
+
+            const comment = appData.comments[postId]?.find(c => c.id === commentId);
+            if (!comment) return;
+
+            if (comment.author !== appData.currentUser.username) {
+                showNotification('You can only delete your own comments!');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to delete this comment?')) {
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('comments')
+                    .delete()
+                    .eq('id', commentId);
+
+                if (error) throw error;
+
+                appData.comments[postId] = appData.comments[postId].filter(c => c.id !== commentId);
+                renderPosts();
+                showNotification('Comment deleted successfully!');
+            } catch (error) {
+                console.error('Error deleting comment:', error);
+                showNotification('Error deleting comment');
+            }
+        }
 
         initSampleData();
         loadDataFromDatabase();
     </script>
+        
 </body>
 </html>
