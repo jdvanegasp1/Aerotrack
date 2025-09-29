@@ -54,11 +54,11 @@
 
 
 .nav-buttons {
-    display: flex;
+    display: flex !important;
     gap: 10px;
     align-items: center;
-    flex-wrap: wrap; /* Add this line */
 }
+
         
         .header-content {
             display: flex;
@@ -335,7 +335,8 @@
         }
         
         .nav-btn {
-    padding: 8px 20px;
+    display: inline-block !important;
+    padding: 8px 16px;
     border: none;
     border-radius: 20px;
     background: linear-gradient(45deg, #ff6b35, #f7931e);
@@ -343,7 +344,6 @@
     cursor: pointer;
     font-weight: bold;
     transition: transform 0.2s;
-    white-space: nowrap;
 }
         
         .nav-btn:hover {
