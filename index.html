@@ -1331,6 +1331,62 @@ const db = {
         if (error) throw error;
         return data || [];
     },
+    async updatePostLikes(postId, likes) {
+        const { data, error } = await supabase
+            .from('posts')
+            .update({ likes })
+            .eq('id', postId);
+        
+        if (error) throw error;
+        return data;
+    },
+
+    async updateCommentLikes(commentId, likes) {
+        const { data, error } = await supabase
+            .from('comments')
+            .update({ likes })
+            .eq('id', commentId);
+        
+        if (error) throw error;
+        return data;
+    },
+
+    async toggleCommentLike(userId, commentId) {
+        const { data: existing } = await supabase
+            .from('comment_likes')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('comment_id', commentId)
+            .single();
+        
+        if (existing) {
+            const { error } = await supabase
+                .from('comment_likes')
+                .delete()
+                .eq('user_id', userId)
+                .eq('comment_id', commentId);
+            
+            if (error) throw error;
+            return false;
+        } else {
+            const { error } = await supabase
+                .from('comment_likes')
+                .insert([{ user_id: userId, comment_id: commentId }]);
+            
+            if (error) throw error;
+            return true;
+        }
+    },
+
+    async getUserCommentLikes(userId) {
+        const { data, error } = await supabase
+            .from('comment_likes')
+            .select('comment_id')
+            .eq('user_id', userId);
+        
+        if (error) throw error;
+        return data || [];
+    },
 
     async updateUser(userId, updates) {
         const { data, error } = await supabase
