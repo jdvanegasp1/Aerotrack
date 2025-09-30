@@ -3587,22 +3587,7 @@ async function deletePost(postId) {
 
         initSampleData();
         loadDataFromDatabase();
-        // Remove any injected background images on auth screen
-document.addEventListener('DOMContentLoaded', function() {
-    const authContainer = document.getElementById('authContainer');
-    if (authContainer) {
-        // Remove any background images
-        authContainer.style.backgroundImage = 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)';
         
-        // Remove any video or img elements that might be injected
-        const videos = authContainer.querySelectorAll('video, img');
-        videos.forEach(v => {
-            if (!v.closest('.auth-box')) {
-                v.remove();
-            }
-        });
-    }
-});
     </script>
         
 </body>
