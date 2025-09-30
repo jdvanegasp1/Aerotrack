@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="https://i.postimg.cc/MZQg8dYX/Logo-Aerotrack.jpg" type="image/png">
@@ -872,18 +873,31 @@
             background: #f0f0f0;
         }
 
-   .auth-container {
+.auth-container {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%) !important;
-    background-image: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%) !important;
+    background-color: #000000 !important;
+    background-image: url('https://i.postimg.cc/wxsBSvQx/motorsport.avif') !important;
+    background-position: center center !important;
+    background-size: cover !important;
+    background-repeat: no-repeat !important;
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
     z-index: 9999 !important;
+}
+
+.auth-container > *:not(.auth-box) {
+    display: none !important;
+}
+
+.auth-container video,
+.auth-container > img,
+.auth-container > div:not(.auth-box) {
+    display: none !important;
 }
 
 .auth-container::before {
@@ -893,7 +907,7 @@
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
-    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%) !important;
+    background: rgba(0, 0, 0, 0.4) !important;
     z-index: -1 !important;
 }
 
@@ -3574,22 +3588,54 @@ async function deletePost(postId) {
 
         initSampleData();
         loadDataFromDatabase();
-        // Remove any injected background images on auth screen
-document.addEventListener('DOMContentLoaded', function() {
-    const authContainer = document.getElementById('authContainer');
-    if (authContainer) {
-        // Remove any background images
-        authContainer.style.backgroundImage = 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)';
+        initSampleData();
+        loadDataFromDatabase();
         
-        // Remove any video or img elements that might be injected
-        const videos = authContainer.querySelectorAll('video, img');
-        videos.forEach(v => {
-            if (!v.closest('.auth-box')) {
-                v.remove();
+        // IMMEDIATE background image force - runs before anything else
+        const authContainer = document.getElementById('authContainer');
+        const imageUrl = 'https://i.imgur.com/G9sZmEH.jpeg';
+        
+        if (authContainer) {
+            // Nuclear option - completely override all styles
+            function forceBackgroundNow() {
+                authContainer.setAttribute('style', `
+                    position: fixed !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    width: 100% !important;
+                    height: 100% !important;
+                    background: url('${imageUrl}') center center / cover no-repeat #1e3c72 !important;
+                    background-image: url('${imageUrl}') !important;
+                    background-size: cover !important;
+                    background-position: center !important;
+                    background-repeat: no-repeat !important;
+                    display: flex !important;
+                    justify-content: center !important;
+                    align-items: center !important;
+                    z-index: 9999 !important;
+                `);
+                
+                // Remove any injected elements that aren't auth-box
+                Array.from(authContainer.children).forEach(child => {
+                    if (!child.classList.contains('auth-box')) {
+                        child.remove();
+                    }
+                });
             }
-        });
-    }
-});
+            
+            // Force immediately
+            forceBackgroundNow();
+            
+            // Keep forcing it multiple times
+            setInterval(forceBackgroundNow, 100);
+            
+            // Stop after 3 seconds (background should be stable by then)
+            setTimeout(() => {
+                clearInterval(forceBackgroundNow);
+            }, 3000);
+        }
+        
+    </script>
     </script>
         
 </body>
