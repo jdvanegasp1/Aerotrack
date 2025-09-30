@@ -880,7 +880,7 @@
     width: 100% !important;
     height: 100% !important;
     background-color: #1e3c72 !important;
-    background-image: url('https://i.accu.co.uk/industry/motorsport.jpeg') !important;
+    background-image: url('https://i.imgur.com/G9sZmEH.jpeg') !important;
     background-position: center center !important;
     background-size: cover !important;
     background-repeat: no-repeat !important;
@@ -888,6 +888,16 @@
     justify-content: center !important;
     align-items: center !important;
     z-index: 9999 !important;
+}
+
+.auth-container > *:not(.auth-box) {
+    display: none !important;
+}
+
+.auth-container video,
+.auth-container > img,
+.auth-container > div:not(.auth-box) {
+    display: none !important;
 }
 
 .auth-container::before {
@@ -909,7 +919,6 @@
     position: relative !important;
     z-index: 1 !important;
 }
-
         .auth-box {
             background: white;
             border-radius: 20px;
