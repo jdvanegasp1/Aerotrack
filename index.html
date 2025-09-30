@@ -919,6 +919,7 @@
     position: relative !important;
     z-index: 1 !important;
 }
+
         .auth-box {
             background: white;
             border-radius: 20px;
@@ -3587,7 +3588,54 @@ async function deletePost(postId) {
 
         initSampleData();
         loadDataFromDatabase();
+        initSampleData();
+        loadDataFromDatabase();
         
+        // IMMEDIATE background image force - runs before anything else
+        const authContainer = document.getElementById('authContainer');
+        const imageUrl = 'https://i.imgur.com/G9sZmEH.jpeg';
+        
+        if (authContainer) {
+            // Nuclear option - completely override all styles
+            function forceBackgroundNow() {
+                authContainer.setAttribute('style', `
+                    position: fixed !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    width: 100% !important;
+                    height: 100% !important;
+                    background: url('${imageUrl}') center center / cover no-repeat #1e3c72 !important;
+                    background-image: url('${imageUrl}') !important;
+                    background-size: cover !important;
+                    background-position: center !important;
+                    background-repeat: no-repeat !important;
+                    display: flex !important;
+                    justify-content: center !important;
+                    align-items: center !important;
+                    z-index: 9999 !important;
+                `);
+                
+                // Remove any injected elements that aren't auth-box
+                Array.from(authContainer.children).forEach(child => {
+                    if (!child.classList.contains('auth-box')) {
+                        child.remove();
+                    }
+                });
+            }
+            
+            // Force immediately
+            forceBackgroundNow();
+            
+            // Keep forcing it multiple times
+            setInterval(forceBackgroundNow, 100);
+            
+            // Stop after 3 seconds (background should be stable by then)
+            setTimeout(() => {
+                clearInterval(forceBackgroundNow);
+            }, 3000);
+        }
+        
+    </script>
     </script>
         
 </body>
